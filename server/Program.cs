@@ -36,6 +36,7 @@ class ServerUDP
 
     // TODO: [Read the JSON file and return the list of DNSRecords]
 
+    static List<DNSRecord>? dnsrecords = JsonSerializer.Deserialize<List<DNSRecord>>(File.ReadAllText(@"DNSrecords.json"));
 
 
 
