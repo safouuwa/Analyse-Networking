@@ -45,11 +45,14 @@ class ServerUDP
 
 
         // TODO: [Create a socket and endpoints and bind it to the server IP address and port number]
-
+        var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        var ipAddress = IPAddress.Parse(setting.ServerIPAddress);
+        IPEndPoint ep1 = new IPEndPoint(ipAddress, setting.ServerPortNumber);
+        socket.Bind(ep1);
 
 
         // TODO:[Receive and print a received Message from the client]
-
+        socket.Listen();
 
 
 

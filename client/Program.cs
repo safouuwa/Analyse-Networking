@@ -39,7 +39,10 @@ class ClientUDP
     {
 
         //TODO: [Create endpoints and socket]
-
+        var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        var ipAddress = IPAddress.Parse(setting.ClientIPAddress);
+        IPEndPoint ep1 = new IPEndPoint(ipAddress, setting.ClientPortNumber);
+        socket.Bind(ep1);
 
         //TODO: [Create and send HELLO]
 
