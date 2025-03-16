@@ -53,13 +53,16 @@ class ServerUDP
 
         // TODO:[Receive and print a received Message from the client]
         byte[] buffer = new byte[1000];
-        byte[] msg = Encoding.ASCII.GetBytes("WELCOME");
+        var welcome = new Message
+        {
+            MsgId = 2,
+            MsgType = MessageType.Welcome,
+            Content = new String("Welcome from server")
+        };
+        var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(welcome));
         string data = null;
         socket.Listen(5);
         Console.WriteLine("\n Waiting for clients..");
-        
-
-
 
         // TODO:[Receive and print Hello]
         // TODO:[Send Welcome to the client]
@@ -68,19 +71,12 @@ class ServerUDP
         {
             int b = newSock.Receive(buffer);
             data = Encoding.ASCII.GetString(buffer, 0, b);
-            if( data == "Closed")
-            {
-                newSock.Close();
-                Console.WriteLine("Closing the socket..");
-                break;
-            }
-            else
-            {
-                Console.WriteLine("" + data);
-                data = null;
-                newSock.Send(msg);
-                break;
-            }
+            var hello = JsonSerializer.Deserialize<Message>(data);
+            var msghello = hello.Content as JsonElement?;
+            Console.WriteLine("" + msghello);
+            data = null;
+            newSock.Send(msg);
+            break;
         }
         // TODO:[Receive and print DNSLookup]
         Message dnsmsg;

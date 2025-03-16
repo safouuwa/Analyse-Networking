@@ -54,30 +54,25 @@ class ClientUDP
         socket.Connect(serverep);
         while (true)
         {
-            data = "HELLO";
-            if( data.Length != 0 )
+            var hello = new Message
             {
-                msg = Encoding.ASCII.GetBytes(data);
+                MsgId = 1,
+                MsgType = MessageType.Hello,
+                Content = new String("Hello from client")
+            };
+            msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(hello));
+            if( hello != null )
+            {
                 socket.Send(msg);
                 int be = socket.Receive(buffer);
                 data = Encoding.ASCII.GetString(buffer, 0, be);
 
-                Console.WriteLine("" + data);
+                var welcome = JsonSerializer.Deserialize<Message>(data);
+                var msgwelcome = welcome.Content as JsonElement?;
+                Console.WriteLine("" + msgwelcome);
                 data = null;
                 break;
             }
-
-            Console.WriteLine("\n<< Continue 'y' , Exit 'e'>>\n");
-            key = Console.ReadKey();
-            if (key.KeyChar == 'e')
-            {
-                socket.Send(Encoding.ASCII.GetBytes("Closed"));
-                Console.WriteLine("\nExiting.. Press any key to continue");
-                key = Console.ReadKey();
-                socket.Close();
-                break;
-            }
-
         }
 
         // TODO: [Create and send DNSLookup Message]
