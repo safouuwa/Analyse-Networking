@@ -57,7 +57,7 @@ class ServerUDP
         {
             MsgId = 2,
             MsgType = MessageType.Welcome,
-            Content = new String("Welcome from server")
+            Content = "Welcome from server"
         };
         var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(welcome));
         string data = null;
@@ -94,34 +94,38 @@ class ServerUDP
         var rec = JsonSerializer.Deserialize<DNSRecord>(content.Value.GetRawText());
         var foundmsg = dnsrecords.Find(x => x.Name == rec.Name && x.Type == rec.Type);
         Message dnsreply;
+        // TODO:[If found Send DNSLookupReply containing the DNSRecord]
         if (foundmsg != null)
         {
             dnsreply = new Message
             {
-                MsgId = 2,
+                MsgId = 33,
                 MsgType = MessageType.DNSLookupReply,
                 Content = foundmsg
             };
         }
+        // TODO:[If not found Send Error]
         else
         {
             dnsreply = new Message
             {
-                MsgId = 2,
+                MsgId = 33,
                 MsgType = MessageType.Error,
                 Content = "DNS record not found"
             };
         }
         newSock.Send(Encoding.ASCII.GetBytes(JsonSerializer.Serialize(dnsreply)));
 
-        // TODO:[If found Send DNSLookupReply containing the DNSRecord]
-
-
-
-        // TODO:[If not found Send Error]
-
-
         // TODO:[Receive Ack about correct DNSLookupReply from the client]
+        while(true)
+        {
+            int b = newSock.Receive(buffer);
+            data = Encoding.ASCII.GetString(buffer, 0, b);
+            var ack = JsonSerializer.Deserialize<Message>(data);
+            Console.WriteLine("" + data);
+            data = null;
+            break;
+        }
 
 
         // TODO:[If no further requests receieved send End to the client]

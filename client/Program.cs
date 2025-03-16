@@ -58,7 +58,7 @@ class ClientUDP
             {
                 MsgId = 1,
                 MsgType = MessageType.Hello,
-                Content = new String("Hello from client")
+                Content = "Hello from client"
             };
             msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(hello));
             if( hello != null )
@@ -91,6 +91,14 @@ class ClientUDP
         Console.WriteLine("" + data);
 
         //TODO: [Send Acknowledgment to Server]
+        var ack = new Message
+        {
+            MsgId = 4112,
+            MsgType = MessageType.Ack,
+            Content = "33"
+        };
+        msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(ack));
+        socket.Send(msg);
 
         // TODO: [Send next DNSLookup to server]
         // repeat the process until all DNSLoopkups (correct and incorrect onces) are sent to server and the replies with DNSLookupReply
