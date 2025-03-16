@@ -52,15 +52,37 @@ class ServerUDP
 
 
         // TODO:[Receive and print a received Message from the client]
-        socket.Listen();
+        byte[] buffer = new byte[1000];
+        byte[] msg = Encoding.ASCII.GetBytes("WELCOME");
+        string data = null;
+        socket.Listen(5);
+        Console.WriteLine("\n Waiting for clients..");
+        
 
 
 
         // TODO:[Receive and print Hello]
-
-
-
         // TODO:[Send Welcome to the client]
+        Socket newSock = socket.Accept();
+        while (true)
+        {
+            int b = newSock.Receive(buffer);
+            data = Encoding.ASCII.GetString(buffer, 0, b);
+            if( data == "Closed")
+            {
+                newSock.Close();
+                Console.WriteLine("Closing the socket..");
+                break;
+            }
+            else
+            {
+                Console.WriteLine("" + data);
+                data = null;
+                newSock.Send(msg);
+                break;
+            }
+        }
+        socket.Close();
 
 
         // TODO:[Receive and print DNSLookup]

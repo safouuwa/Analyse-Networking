@@ -45,8 +45,40 @@ class ClientUDP
         socket.Bind(ep1);
 
         //TODO: [Create and send HELLO]
-
         //TODO: [Receive and print Welcome from server]
+        byte[] buffer = new byte[1000];
+        byte[] msg = new byte[1000];
+        string data = null;
+        IPEndPoint serverep = new IPEndPoint(ipAddress, setting.ServerPortNumber);
+        ConsoleKeyInfo key;
+        socket.Connect(serverep);
+        while (true)
+        {
+            data = "HELLO";
+            if( data.Length != 0 )
+            {
+                msg = Encoding.ASCII.GetBytes(data);
+                socket.Send(msg);
+                int b = socket.Receive(buffer);
+                data = Encoding.ASCII.GetString(buffer, 0, b);
+
+                Console.WriteLine("" + data);
+                data = null;
+                break;
+            }
+
+            Console.WriteLine("\n<< Continue 'y' , Exit 'e'>>\n");
+            key = Console.ReadKey();
+            if (key.KeyChar == 'e')
+            {
+                socket.Send(Encoding.ASCII.GetBytes("Closed"));
+                Console.WriteLine("\nExiting.. Press any key to continue");
+                key = Console.ReadKey();
+                socket.Close();
+                break;
+            }
+
+        }
 
         // TODO: [Create and send DNSLookup Message]
 
