@@ -59,8 +59,8 @@ class ClientUDP
             {
                 msg = Encoding.ASCII.GetBytes(data);
                 socket.Send(msg);
-                int b = socket.Receive(buffer);
-                data = Encoding.ASCII.GetString(buffer, 0, b);
+                int be = socket.Receive(buffer);
+                data = Encoding.ASCII.GetString(buffer, 0, be);
 
                 Console.WriteLine("" + data);
                 data = null;
@@ -81,10 +81,19 @@ class ClientUDP
         }
 
         // TODO: [Create and send DNSLookup Message]
-
+        var dnsmsg = new Message
+        {
+            MsgId = 33,
+            MsgType = MessageType.DNSLookup,
+            Content = new { Type = "A", Name = "www.outlook.com" }
+        };
+        msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(dnsmsg));
+        socket.Send(msg);
 
         //TODO: [Receive and print DNSLookupReply from server]
-
+        var b = socket.Receive(buffer);
+        data = Encoding.ASCII.GetString(buffer, 0, b);
+        Console.WriteLine("" + data);
 
         //TODO: [Send Acknowledgment to Server]
 
