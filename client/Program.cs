@@ -102,12 +102,44 @@ class ClientUDP
 
         // TODO: [Send next DNSLookup to server]
         // repeat the process until all DNSLoopkups (correct and incorrect onces) are sent to server and the replies with DNSLookupReply
+        var dnsLookups = new List<Message>
+        {
+            new Message { MsgId = 33, MsgType = MessageType.DNSLookup, Content = new { Type = "A", Name = "www.outlook.com" } },
+            new Message { MsgId = 34, MsgType = MessageType.DNSLookup, Content = new { Type = "A", Name = "www.nonexistent.com" } },
+            new Message { MsgId = 35, MsgType = MessageType.DNSLookup, Content = new { Type = "A", Name = "www.sample.com" } },
+            new Message { MsgId = 36, MsgType = MessageType.DNSLookup, Content = new { Type = "A", Name = "www.fake.com" } }
+        };
+
+        foreach (var dnsLookup in dnsLookups)
+        {
+            msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(dnsLookup));
+            socket.Send(msg);
+
+            // Receive and print DNSLookupReply from server
+            var b2 = socket.Receive(buffer);
+            data = Encoding.ASCII.GetString(buffer, 0, b2);
+            Console.WriteLine($"Received: {data}");
+
+            // Send Acknowledgment to Server
+            var ack1 = new Message
+            {
+                MsgId = dnsLookup.MsgId + 1000,
+                MsgType = MessageType.Ack,
+                Content = dnsLookup.MsgId.ToString()
+            };
+            msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(ack1));
+            socket.Send(msg);
+        }
 
         //TODO: [Receive and print End from server]
-
-
-
-
-
+        b = socket.Receive(buffer);
+        data = Encoding.ASCII.GetString(buffer, 0, b);
+        var end = JsonSerializer.Deserialize<Message>(data);
+        var msgend = end.Content as JsonElement?;
+        if (end.MsgType == MessageType.End)
+        {
+            Console.WriteLine("" + msgend);
+            socket.Close();
+        }
     }
 }

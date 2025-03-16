@@ -95,6 +95,7 @@ class ServerUDP
         var foundmsg = dnsrecords.Find(x => x.Name == rec.Name && x.Type == rec.Type);
         Message dnsreply;
         // TODO:[If found Send DNSLookupReply containing the DNSRecord]
+        // TODO:[If not found Send Error]
         if (foundmsg != null)
         {
             dnsreply = new Message
@@ -104,7 +105,6 @@ class ServerUDP
                 Content = foundmsg
             };
         }
-        // TODO:[If not found Send Error]
         else
         {
             dnsreply = new Message
@@ -129,8 +129,61 @@ class ServerUDP
 
 
         // TODO:[If no further requests receieved send End to the client]
+        var ackcount = 0;
+        while (true)
+        {
+            int b = newSock.Receive(buffer);
+            data = Encoding.ASCII.GetString(buffer, 0, b);
+            dnsmsg = JsonSerializer.Deserialize<Message>(data);
+            Console.WriteLine("" + data);
+            data = null;
+            if (dnsmsg.MsgType == MessageType.DNSLookup)
+            {
+                var content1 = dnsmsg.Content as JsonElement?;
+                var rec1 = JsonSerializer.Deserialize<DNSRecord>(content1.Value.GetRawText());
+                var foundmsg1 = dnsrecords.Find(x => x.Name == rec1.Name && x.Type == rec1.Type);
+                Message dnsreply1;
+                // TODO:[If found Send DNSLookupReply containing the DNSRecord]
+                // TODO:[If not found Send Error]
+                if (foundmsg1 != null)
+                {
+                    dnsreply1 = new Message
+                    {
+                        MsgId = dnsmsg.MsgId,
+                        MsgType = MessageType.DNSLookupReply,
+                        Content = foundmsg1
+                    };
+                }
+                else
+                {
+                    dnsreply1 = new Message
+                    {
+                        MsgId = dnsmsg.MsgId,
+                        MsgType = MessageType.Error,
+                        Content = "DNS record not found"
+                    };
+                }
+                newSock.Send(Encoding.ASCII.GetBytes(JsonSerializer.Serialize(dnsreply1)));
+            }
+            else if (dnsmsg.MsgType == MessageType.Ack)
+            {
+                ackcount++;
 
+                if (ackcount == 4)
+                {
+                    var endMessage = new Message
+                    {
+                        MsgId = 9999,
+                        MsgType = MessageType.End,
+                        Content = "End of communication"
+                    };
+                    newSock.Send(Encoding.ASCII.GetBytes(JsonSerializer.Serialize(endMessage)));
+                    break;
+                }
+            }
+        }
+        socket.Listen(5);
+        Console.WriteLine("\n Waiting for clients..");
+        socket.Accept();
     }
-
-
 }
