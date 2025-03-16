@@ -94,14 +94,14 @@ class ClientUDP
         foreach (var dnsLookup in dnsLookups)
         {
             msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(dnsLookup));
+            var content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(dnsLookup));
+            Console.WriteLine("Message to server: " + content);
             socket.Send(msg);
 
-            // Receive and print DNSLookupReply from server
             var b2 = socket.Receive(buffer);
             data = Encoding.ASCII.GetString(buffer, 0, b2);
-            Console.WriteLine($"Received: {data}");
+            Console.WriteLine($"Received from server: {data}");
 
-            // Send Acknowledgment to Server
             var ack1 = new Message
             {
                 MsgId = dnsLookup.MsgId + 1000,
@@ -109,6 +109,8 @@ class ClientUDP
                 Content = dnsLookup.MsgId.ToString()
             };
             msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(ack1));
+            content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(dnsLookup));
+            Console.WriteLine("Acknowledgment to server: " + content);
             socket.Send(msg);
         }
 

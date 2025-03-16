@@ -69,8 +69,6 @@ class ServerUDP
         Socket newSock = socket.Accept();
         // TODO:[Receive and print DNSLookup]
         // TODO:[Query the DNSRecord in Json file]
-        // TODO:[If found Send DNSLookupReply containing the DNSRecord]
-        // TODO:[If not found Send Error]
         // TODO:[Receive Ack about correct DNSLookupReply from the client]
         // TODO:[If no further requests receieved send End to the client]
         var ackcount = 0;
@@ -121,6 +119,7 @@ class ServerUDP
             else if (dnsmsg.MsgType == MessageType.Ack)
             {
                 ackcount++;
+                Console.WriteLine("Acknowledgement received from client!");
 
                 if (ackcount == 4)
                 {
