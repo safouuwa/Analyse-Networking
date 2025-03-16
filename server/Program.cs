@@ -67,77 +67,28 @@ class ServerUDP
         // TODO:[Receive and print Hello]
         // TODO:[Send Welcome to the client]
         Socket newSock = socket.Accept();
-        while (true)
-        {
-            int b = newSock.Receive(buffer);
-            data = Encoding.ASCII.GetString(buffer, 0, b);
-            var hello = JsonSerializer.Deserialize<Message>(data);
-            var msghello = hello.Content as JsonElement?;
-            Console.WriteLine("" + msghello);
-            data = null;
-            newSock.Send(msg);
-            break;
-        }
         // TODO:[Receive and print DNSLookup]
-        Message dnsmsg;
-        while (true)
-        {
-            int b = newSock.Receive(buffer);
-            data = Encoding.ASCII.GetString(buffer, 0, b);
-            dnsmsg = JsonSerializer.Deserialize<Message>(data);
-            Console.WriteLine("" + data);
-            data = null;
-            break;
-        }
         // TODO:[Query the DNSRecord in Json file]
-        var content = dnsmsg.Content as JsonElement?;
-        var rec = JsonSerializer.Deserialize<DNSRecord>(content.Value.GetRawText());
-        var foundmsg = dnsrecords.Find(x => x.Name == rec.Name && x.Type == rec.Type);
-        Message dnsreply;
         // TODO:[If found Send DNSLookupReply containing the DNSRecord]
         // TODO:[If not found Send Error]
-        if (foundmsg != null)
-        {
-            dnsreply = new Message
-            {
-                MsgId = 33,
-                MsgType = MessageType.DNSLookupReply,
-                Content = foundmsg
-            };
-        }
-        else
-        {
-            dnsreply = new Message
-            {
-                MsgId = 33,
-                MsgType = MessageType.Error,
-                Content = "DNS record not found"
-            };
-        }
-        newSock.Send(Encoding.ASCII.GetBytes(JsonSerializer.Serialize(dnsreply)));
-
         // TODO:[Receive Ack about correct DNSLookupReply from the client]
-        while(true)
-        {
-            int b = newSock.Receive(buffer);
-            data = Encoding.ASCII.GetString(buffer, 0, b);
-            var ack = JsonSerializer.Deserialize<Message>(data);
-            Console.WriteLine("" + data);
-            data = null;
-            break;
-        }
-
-
         // TODO:[If no further requests receieved send End to the client]
         var ackcount = 0;
+        var content = new JsonElement();
         while (true)
         {
             int b = newSock.Receive(buffer);
             data = Encoding.ASCII.GetString(buffer, 0, b);
-            dnsmsg = JsonSerializer.Deserialize<Message>(data);
-            Console.WriteLine("" + data);
+            Message dnsmsg = JsonSerializer.Deserialize<Message>(data);
+            Console.WriteLine("Received from client: " + data);
             data = null;
-            if (dnsmsg.MsgType == MessageType.DNSLookup)
+            if (dnsmsg.MsgType == MessageType.Hello)
+            {
+                content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(welcome));
+                Console.WriteLine("Reply to client: " + content);
+                newSock.Send(msg);
+            }
+            else if (dnsmsg.MsgType == MessageType.DNSLookup)
             {
                 var content1 = dnsmsg.Content as JsonElement?;
                 var rec1 = JsonSerializer.Deserialize<DNSRecord>(content1.Value.GetRawText());
@@ -163,6 +114,8 @@ class ServerUDP
                         Content = "DNS record not found"
                     };
                 }
+                content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(dnsreply1));
+                Console.WriteLine("Reply to client: " + content);
                 newSock.Send(Encoding.ASCII.GetBytes(JsonSerializer.Serialize(dnsreply1)));
             }
             else if (dnsmsg.MsgType == MessageType.Ack)
@@ -177,6 +130,8 @@ class ServerUDP
                         MsgType = MessageType.End,
                         Content = "End of communication"
                     };
+                    content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(endMessage));
+                    Console.WriteLine("Reply to client: " + content);
                     newSock.Send(Encoding.ASCII.GetBytes(JsonSerializer.Serialize(endMessage)));
                     break;
                 }
