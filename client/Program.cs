@@ -69,7 +69,7 @@ class ClientUDP
 
                 var welcome = JsonSerializer.Deserialize<Message>(data);
                 var msgwelcome = welcome.Content as JsonElement?;
-                Console.WriteLine("" + msgwelcome);
+                Console.WriteLine("Received from server: " + data);
                 data = null;
                 break;
             }
