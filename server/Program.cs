@@ -37,6 +37,8 @@ class ServerUDP
     // TODO: [Read the JSON file and return the list of DNSRecords]
 
     static List<DNSRecord>? dnsrecords = JsonSerializer.Deserialize<List<DNSRecord>>(File.ReadAllText(@"DNSrecords.json"));
+    static byte[] buffer = new byte[1000];
+    static string data = null;
 
 
 
@@ -52,15 +54,6 @@ class ServerUDP
 
 
         // TODO:[Receive and print a received Message from the client]
-        byte[] buffer = new byte[1000];
-        var welcome = new Message
-        {
-            MsgId = 2,
-            MsgType = MessageType.Welcome,
-            Content = "Welcome from server"
-        };
-        var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(welcome));
-        string data = null;
         socket.Listen(5);
         Console.WriteLine("\n Waiting for clients..");
 
@@ -75,16 +68,15 @@ class ServerUDP
         var content = new JsonElement();
         while (true)
         {
-            int b = newSock.Receive(buffer);
+            EndPoint newEp = (EndPoint)ep1;
+            int b = newSock.ReceiveFrom(buffer, ref newEp);
             data = Encoding.ASCII.GetString(buffer, 0, b);
             Message dnsmsg = JsonSerializer.Deserialize<Message>(data);
             Console.WriteLine("Received from client: " + data);
             data = null;
             if (dnsmsg.MsgType == MessageType.Hello)
             {
-                content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(welcome));
-                Console.WriteLine("Reply to client: " + content);
-                newSock.SendTo(msg, ep1);
+                HelloReply(newSock, ep1);
             }
             else if (dnsmsg.MsgType == MessageType.DNSLookup)
             {
@@ -139,5 +131,23 @@ class ServerUDP
         socket.Listen(5);
         Console.WriteLine("\n Waiting for clients..");
         socket.Accept();
+    }
+
+
+
+    public static void HelloReply(Socket newSock, IPEndPoint ep1)
+    {
+        var content = new JsonElement();
+        var welcome = new Message
+        {
+            MsgId = 2,
+            MsgType = MessageType.Welcome,
+            Content = "Welcome from server"
+        };
+        var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(welcome));
+        string data = null;
+        content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(welcome));
+        Console.WriteLine("Reply to client: " + content);
+        newSock.SendTo(msg, ep1);
     }
 }
