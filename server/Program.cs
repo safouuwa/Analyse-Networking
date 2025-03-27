@@ -84,7 +84,7 @@ class ServerUDP
             {
                 content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(welcome));
                 Console.WriteLine("Reply to client: " + content);
-                newSock.Send(msg);
+                newSock.SendTo(msg, ep1);
             }
             else if (dnsmsg.MsgType == MessageType.DNSLookup)
             {
@@ -114,7 +114,7 @@ class ServerUDP
                 }
                 content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(dnsreply1));
                 Console.WriteLine("Reply to client: " + content);
-                newSock.Send(Encoding.ASCII.GetBytes(JsonSerializer.Serialize(dnsreply1)));
+                newSock.SendTo(Encoding.ASCII.GetBytes(JsonSerializer.Serialize(dnsreply1)), ep1);
             }
             else if (dnsmsg.MsgType == MessageType.Ack)
             {
@@ -131,7 +131,7 @@ class ServerUDP
                     };
                     content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(endMessage));
                     Console.WriteLine("Reply to client: " + content);
-                    newSock.Send(Encoding.ASCII.GetBytes(JsonSerializer.Serialize(endMessage)));
+                    newSock.SendTo(Encoding.ASCII.GetBytes(JsonSerializer.Serialize(endMessage)), ep1);
                     break;
                 }
             }
