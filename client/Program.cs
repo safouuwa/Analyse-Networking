@@ -39,7 +39,7 @@ class ClientUDP
     {
 
         //TODO: [Create endpoints and socket]
-        var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
         var ipAddress = IPAddress.Parse(setting.ClientIPAddress);
         IPEndPoint ep1 = new IPEndPoint(ipAddress, setting.ClientPortNumber);
         socket.Bind(ep1);
@@ -49,30 +49,25 @@ class ClientUDP
         byte[] buffer = new byte[1000];
         byte[] msg = new byte[1000];
         string data = null;
-        IPEndPoint serverep = new IPEndPoint(ipAddress, setting.ServerPortNumber);
-        ConsoleKeyInfo key;
-        socket.Connect(serverep);
-        while (true)
+        IPEndPoint serverep = new IPEndPoint(IPAddress.Parse(setting.ServerIPAddress), setting.ServerPortNumber);
+        EndPoint serverend = serverep;
+        var hello = new Message
         {
-            var hello = new Message
-            {
-                MsgId = 1,
-                MsgType = MessageType.Hello,
-                Content = "Hello from client"
-            };
-            msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(hello));
-            if( hello != null )
-            {
-                socket.Send(msg);
-                int be = socket.Receive(buffer);
-                data = Encoding.ASCII.GetString(buffer, 0, be);
+            MsgId = 1,
+            MsgType = MessageType.Hello,
+            Content = "Hello from client"
+        };
+        msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(hello));
+        if( hello != null )
+        {
+            socket.SendTo(msg, serverend);
+            int be = socket.ReceiveFrom(buffer, ref serverend);
+            data = Encoding.ASCII.GetString(buffer, 0, be);
 
-                var welcome = JsonSerializer.Deserialize<Message>(data);
-                var msgwelcome = welcome.Content as JsonElement?;
-                Console.WriteLine("Received from server: " + data);
-                data = null;
-                break;
-            }
+            var welcome = JsonSerializer.Deserialize<Message>(data);
+            var msgwelcome = welcome.Content as JsonElement?;
+            Console.WriteLine("Received from server: " + msgwelcome);
+            data = null;
         }
 
         // TODO: [Create and send DNSLookup Message]
@@ -94,13 +89,14 @@ class ClientUDP
         foreach (var dnsLookup in dnsLookups)
         {
             msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(dnsLookup));
-            var content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(dnsLookup));
+            var content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(dnsLookup.Content));
             Console.WriteLine("Message to server: " + content);
-            socket.Send(msg);
+            socket.SendTo(msg, serverend);
 
-            var b2 = socket.Receive(buffer);
+            var b2 = socket.ReceiveFrom(buffer, ref serverend);
             data = Encoding.ASCII.GetString(buffer, 0, b2);
-            Console.WriteLine($"Received from server: {data}");
+            var repl = JsonSerializer.Deserialize<Message>(data);
+            Console.WriteLine($"Received from server: {repl.Content as JsonElement?}");
 
             var ack1 = new Message
             {
@@ -109,13 +105,13 @@ class ClientUDP
                 Content = dnsLookup.MsgId.ToString()
             };
             msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(ack1));
-            content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(dnsLookup));
-            Console.WriteLine("Acknowledgment to server: " + content);
-            socket.Send(msg);
+            content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(ack1.Content));
+            Console.WriteLine("Acknowledgment to server for Message ID:" + content);
+            socket.SendTo(msg, serverend);
         }
 
         //TODO: [Receive and print End from server]
-        var b = socket.Receive(buffer);
+        var b = socket.ReceiveFrom(buffer, ref serverend);
         data = Encoding.ASCII.GetString(buffer, 0, b);
         var end = JsonSerializer.Deserialize<Message>(data);
         var msgend = end.Content as JsonElement?;
