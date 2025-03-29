@@ -55,19 +55,18 @@ class ServerUDP
         while (true)
         {
             // TODO:[Receive and print Hello]
-            EndPoint clientep = new IPEndPoint(IPAddress.Any, 0);;
-            int b = socket.ReceiveFrom(buffer, ref clientep);
-            data = Encoding.ASCII.GetString(buffer, 0, b);
-            Message dnsmsg = JsonSerializer.Deserialize<Message>(data);
-            Console.WriteLine("Received from client: " + dnsmsg.Content);
+            EndPoint clientep = new IPEndPoint(IPAddress.Parse(setting.ClientIPAddress), setting.ClientPortNumber);;
+            Message dnsmsg = Listen(socket, clientep);
             if (dnsmsg.MsgType == MessageType.Hello)
             {
                 // TODO:[Send Welcome to the client]
+                Console.WriteLine("Received from client: " + dnsmsg.Content);
                 HelloReply(socket, clientep);
             }
             else if (dnsmsg.MsgType == MessageType.DNSLookup)
             {
                 // TODO:[Receive and print DNSLookup]
+                Console.WriteLine("Received from client: " + dnsmsg.Content);
                 DNSLookupReply(socket, clientep, dnsmsg);
             }
             else if (dnsmsg.MsgType == MessageType.Ack)
@@ -80,7 +79,13 @@ class ServerUDP
         }
     }
 
-
+    public static Message Listen(Socket socket, EndPoint ep)
+    {
+        int b = socket.ReceiveFrom(buffer, ref ep);
+        data = Encoding.ASCII.GetString(buffer, 0, b);
+        Message dnsmsg = JsonSerializer.Deserialize<Message>(data);
+        return dnsmsg;
+    }
 
     public static void HelloReply(Socket socket, EndPoint ep)
     {
@@ -91,8 +96,8 @@ class ServerUDP
             Content = "Welcome from server"
         };
         var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(welcome));
-        Console.WriteLine("Reply to client: " + welcome.Content);
         socket.SendTo(msg, ep);
+        Console.WriteLine("Reply to client: " + welcome.Content);
     }
 
     public static void DNSLookupReply(Socket socket, EndPoint ep, Message dnsmsg)
@@ -131,7 +136,7 @@ class ServerUDP
         ackcount++;
         Console.WriteLine("Acknowledgement received from client!");
 
-        if (ackcount == 4) // Assuming 4 DNSLookup requests
+        if (ackcount == 4)
         {
             var endMessage = new Message
             {
