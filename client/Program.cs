@@ -47,18 +47,15 @@ class ClientUDP
         socket.Bind(ep1);
 
         //TODO: [Create and send HELLO]
-        //TODO: [Receive and print Welcome from server]
         IPEndPoint serverep = new IPEndPoint(IPAddress.Parse(setting.ServerIPAddress), setting.ServerPortNumber);
         EndPoint serverend = serverep;
         SendHello(socket, serverend);
+        //TODO: [Receive and print Welcome from server]
         var welcome = Listen(socket, serverend);
         var msgwelcome = welcome.Content as JsonElement?;
         Console.WriteLine("Received from server: " + msgwelcome);
         
         // TODO: [Create and send DNSLookup Message]
-        //TODO: [Receive and print DNSLookupReply from server]
-        //TODO: [Send Acknowledgment to Server]
-        // TODO: [Send next DNSLookup to server]
         var dnsLookups = new List<Message>
         {
             new Message { MsgId = 33, MsgType = MessageType.DNSLookup, Content = new { Type = "A", Name = "www.outlook.com" } },
@@ -66,11 +63,14 @@ class ClientUDP
             new Message { MsgId = 35, MsgType = MessageType.DNSLookup, Content = new { Type = "A", Name = "www.sample.com" } },
             new Message { MsgId = 36, MsgType = MessageType.DNSLookup, Content = new { Type = "A", Name = "www.fake.com" } }
         };
+        // TODO: [Send next DNSLookup to server]
         foreach (var dnsLookup in dnsLookups)
         {
             SendDNSLookup(socket, serverend, dnsLookup);
+            //TODO: [Receive and print DNSLookupReply from server]
             var repl = Listen(socket, serverend);
             Console.WriteLine($"Received from server: {repl.Content as JsonElement?}");
+            //TODO: [Send Acknowledgment to Server]
             var ack1 = new Message
             {
                 MsgId = dnsLookup.MsgId + 1000,

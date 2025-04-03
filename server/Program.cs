@@ -73,10 +73,10 @@ class ServerUDP
             else if (dnsmsg.MsgType == MessageType.Ack)
             {
                 // TODO:[Receive Ack about correct DNSLookupReply from the client]
-                // TODO:[If no further requests receieved send End to the client]
-                var v = AcknowledgementHandle(socket, clientep, dnsmsg);
+                Console.WriteLine("Received Acknowledgement from client for Message ID: " + dnsmsg.Content);
+                AcknowledgementHandle(socket, clientep);
             }
-            else SendError(socket, clientep, dnsmsg);
+            else SendError(socket, clientep);
         }
     }
 
@@ -87,8 +87,8 @@ class ServerUDP
         Message dnsmsg = JsonSerializer.Deserialize<Message>(data);
         if (dnsmsg == null)
         {
-            Console.WriteLine("Error: Unable to deserialize message.");
-            SendError(socket, ep, dnsmsg);
+            Console.WriteLine("Error: Unable to deserialize message; Message does not match the expected object format.");
+            SendError(socket, ep);
             return null;
         }
         return dnsmsg;
@@ -111,6 +111,12 @@ class ServerUDP
     {
         var content1 = dnsmsg.Content as JsonElement?;
         var rec1 = JsonSerializer.Deserialize<DNSRecord>(content1.Value.GetRawText());
+        if (rec1 == null)
+        {
+            Console.WriteLine("Error: Unable to deserialize message; Message does not match the expected object format.");
+            SendError(socket, ep);
+            return;
+        }
         var foundmsg1 = dnsrecords.Find(x => x.Name == rec1.Name && x.Type == rec1.Type);
         Message dnsreply1;
 
@@ -138,11 +144,10 @@ class ServerUDP
         socket.SendTo(msg, ep);
     }
 
-    public static bool AcknowledgementHandle(Socket socket, EndPoint ep, Message dnsmsg)
+    public static bool AcknowledgementHandle(Socket socket, EndPoint ep)
     {
         ackcount++;
-        Console.WriteLine("Acknowledgement received from client!");
-
+        // TODO:[If no further requests receieved send End to the client]
         if (ackcount == 4)
         {
             var endMessage = new Message
@@ -160,13 +165,13 @@ class ServerUDP
         return true;
     }
 
-    public static void SendError(Socket socket, EndPoint ep, Message dnsmsg)
+    public static void SendError(Socket socket, EndPoint ep)
     {
         var errorMessage = new Message
         {
             MsgId = 9999,
             MsgType = MessageType.Error,
-            Content = "Error occurred"
+            Content = "Error: Unable to deserialize message; Server does not support the given Message Type."
         };
         var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(errorMessage));
         Console.WriteLine("Reply to client: " + errorMessage.Content);
