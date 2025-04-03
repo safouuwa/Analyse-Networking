@@ -52,6 +52,7 @@ class ClientUDP
         SendHello(socket, serverend);
         //TODO: [Receive and print Welcome from server]
         var welcome = Listen(socket, serverend);
+        if (welcome == null) return;
         var msgwelcome = welcome.Content as JsonElement?;
         Console.WriteLine("Received from server: " + msgwelcome);
         
@@ -69,6 +70,7 @@ class ClientUDP
             SendDNSLookup(socket, serverend, dnsLookup);
             //TODO: [Receive and print DNSLookupReply from server]
             var repl = Listen(socket, serverend);
+            if (repl == null) return;
             Console.WriteLine($"Received from server: {repl.Content as JsonElement?}");
             //TODO: [Send Acknowledgment to Server]
             var ack1 = new Message
@@ -81,6 +83,7 @@ class ClientUDP
         }
         //TODO: [Receive and print End from server]
         var end = Listen(socket, serverend);
+        if (end == null) return;
         var msgend = end.Content as JsonElement?;
         if (end.MsgType == MessageType.End)
         {
@@ -92,37 +95,96 @@ class ClientUDP
     public static void SendHello(Socket socket, EndPoint ep)
     {
         var hello = new Message
+            {
+                MsgId = 1,
+                MsgType = MessageType.Hello,
+                Content = "Hello from client"
+            };
+            var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(hello));
+        try
         {
-            MsgId = 1,
-            MsgType = MessageType.Hello,
-            Content = "Hello from client"
-        };
-        var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(hello));
-        var content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(hello.Content));
-        Console.WriteLine("Message to server: " + content);
-        socket.SendTo(msg, ep);
+            Console.WriteLine("Message to server: " + hello.Content);
+            socket.SendTo(msg, ep);
+        }
+        catch (SocketException ex)
+        {
+            Console.WriteLine($"Socket error while sending Hello message: {ex.Message}");
+        }
     }
 
     public static Message Listen(Socket socket, EndPoint ep)
     {
-        int b = socket.ReceiveFrom(buffer, ref ep);
-        data = Encoding.ASCII.GetString(buffer, 0, b);
-        Message dnsmsg = JsonSerializer.Deserialize<Message>(data);
-        return dnsmsg;
+        try
+        {
+            int b = socket.ReceiveFrom(buffer, ref ep);
+            data = Encoding.ASCII.GetString(buffer, 0, b);
+            Message dnsmsg = JsonSerializer.Deserialize<Message>(data);
+            if (dnsmsg == null)
+            {
+                SendError(socket, ep, "Error: Unable to deserialize message; Message does not match the expected object format.\nClosing client socket...");
+                return null;
+            }
+            return dnsmsg;
+        }
+        catch (SocketException ex)
+        {
+            Console.WriteLine($"Socket error while setting listening for messages: {ex.Message}\nClosing client socket...");
+            return null;
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine($"JSON error while deserializing message: {ex.Message}\nClosing client socket...");
+            return null;
+        }
     }
 
     public static void SendDNSLookup(Socket socket, EndPoint ep, Message dnsLookup)
     {
         var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(dnsLookup));
         var content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(dnsLookup.Content));
-        Console.WriteLine("Message to server: " + content);
-        socket.SendTo(msg, ep);
+        try
+        {
+            Console.WriteLine("Message to server: " + content);
+            socket.SendTo(msg, ep);
+        }
+        catch (SocketException ex)
+        {
+            Console.WriteLine($"Socket error while sending DNSLookup message: {ex.Message}");
+        }
     }
     public static void SendAck(Socket socket, EndPoint ep, Message ackmsg)
     {
         var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(ackmsg));
         var content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(ackmsg.Content));
-        Console.WriteLine("Acknowledgment to server for Message ID:" + content);
-        socket.SendTo(msg, ep);
+        try
+        {
+            Console.WriteLine("Message to server: " + content);
+            socket.SendTo(msg, ep);
+        }
+        catch (SocketException ex)
+        {
+            Console.WriteLine($"Socket error while sending Acknowledgement message: {ex.Message}");
+        }
+    }
+
+    public static void SendError(Socket socket, EndPoint ep, string errormsg)
+    {
+        var errorMessage = new Message
+        {
+            MsgId = 9999,
+            MsgType = MessageType.Error,
+            Content = errormsg
+        };
+        var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(errorMessage));
+        var content = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(errorMessage.Content));
+        try
+        {
+            Console.WriteLine("Message to server: " + content);
+            socket.SendTo(msg, ep);
+        }
+        catch (SocketException ex)
+        {
+            Console.WriteLine($"Socket error while sending Hello message: {ex.Message}");
+        }
     }
 }

@@ -76,22 +76,35 @@ class ServerUDP
                 Console.WriteLine("Received Acknowledgement from client for Message ID: " + dnsmsg.Content);
                 AcknowledgementHandle(socket, clientep);
             }
-            else SendError(socket, clientep);
+            else SendError(socket, clientep, "Error: Unable to deserialize message; Server does not support the given Message Type.");
         }
     }
 
     public static Message Listen(Socket socket, EndPoint ep)
     {
-        int b = socket.ReceiveFrom(buffer, ref ep);
-        data = Encoding.ASCII.GetString(buffer, 0, b);
-        Message dnsmsg = JsonSerializer.Deserialize<Message>(data);
-        if (dnsmsg == null)
+        try
         {
-            Console.WriteLine("Error: Unable to deserialize message; Message does not match the expected object format.");
-            SendError(socket, ep);
+            int b = socket.ReceiveFrom(buffer, ref ep);
+            data = Encoding.ASCII.GetString(buffer, 0, b);
+            Message dnsmsg = JsonSerializer.Deserialize<Message>(data);
+            if (dnsmsg == null)
+            {
+                SendError(socket, ep, "Error: Unable to deserialize message; Message does not match the expected object format.\nSending end message to client.");
+                var endMessage = new Message
+                {
+                    MsgId = 9999,
+                    MsgType = MessageType.Error,
+                    Content = "End connection due to error"
+                };
+                return endMessage;
+            }
+            return dnsmsg;
+        }
+        catch (SocketException ex)
+        {
+            Console.WriteLine($"Socket error while setting listening for messages: {ex.Message}");
             return null;
         }
-        return dnsmsg;
     }
 
     public static void HelloReply(Socket socket, EndPoint ep)
@@ -111,10 +124,9 @@ class ServerUDP
     {
         var content1 = dnsmsg.Content as JsonElement?;
         var rec1 = JsonSerializer.Deserialize<DNSRecord>(content1.Value.GetRawText());
-        if (rec1 == null)
+        if (rec1 == null || string.IsNullOrEmpty(rec1.Name) || string.IsNullOrEmpty(rec1.Type))
         {
-            Console.WriteLine("Error: Unable to deserialize message; Message does not match the expected object format.");
-            SendError(socket, ep);
+            SendError(socket, ep, "Error: Unable to deserialize message; DNSLookup message content is null or incomplete.");
             return;
         }
         var foundmsg1 = dnsrecords.Find(x => x.Name == rec1.Name && x.Type == rec1.Type);
@@ -165,13 +177,13 @@ class ServerUDP
         return true;
     }
 
-    public static void SendError(Socket socket, EndPoint ep)
+    public static void SendError(Socket socket, EndPoint ep, string errormsg)
     {
         var errorMessage = new Message
         {
             MsgId = 9999,
             MsgType = MessageType.Error,
-            Content = "Error: Unable to deserialize message; Server does not support the given Message Type."
+            Content = errormsg
         };
         var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(errorMessage));
         Console.WriteLine("Reply to client: " + errorMessage.Content);
