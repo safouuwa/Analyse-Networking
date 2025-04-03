@@ -51,15 +51,16 @@ class ServerUDP
         var ipAddress = IPAddress.Parse(setting.ServerIPAddress);
         IPEndPoint ep1 = new IPEndPoint(ipAddress, setting.ServerPortNumber);
         socket.Bind(ep1);
-
+        Console.WriteLine("Server started and waiting for messages...");
         while (true)
         {
             // TODO:[Receive and print Hello]
             EndPoint clientep = new IPEndPoint(IPAddress.Parse(setting.ClientIPAddress), setting.ClientPortNumber);;
             Message dnsmsg = Listen(socket, clientep);
+            if (dnsmsg == null) continue;
             if (dnsmsg.MsgType == MessageType.Hello)
             {
-                // TODO:[Send Welcome to the client]
+                // TODO:[Send Welcome to the client] 
                 Console.WriteLine("Received from client: " + dnsmsg.Content);
                 HelloReply(socket, clientep);
             }
@@ -74,8 +75,8 @@ class ServerUDP
                 // TODO:[Receive Ack about correct DNSLookupReply from the client]
                 // TODO:[If no further requests receieved send End to the client]
                 var v = AcknowledgementHandle(socket, clientep, dnsmsg);
-                if (!v) break;
             }
+            else SendError(socket, clientep, dnsmsg);
         }
     }
 
@@ -84,6 +85,12 @@ class ServerUDP
         int b = socket.ReceiveFrom(buffer, ref ep);
         data = Encoding.ASCII.GetString(buffer, 0, b);
         Message dnsmsg = JsonSerializer.Deserialize<Message>(data);
+        if (dnsmsg == null)
+        {
+            Console.WriteLine("Error: Unable to deserialize message.");
+            SendError(socket, ep, dnsmsg);
+            return null;
+        }
         return dnsmsg;
     }
 
@@ -122,7 +129,7 @@ class ServerUDP
             {
                 MsgId = dnsmsg.MsgId,
                 MsgType = MessageType.Error,
-                Content = "DNS record not found"
+                Content = "Domain not found"
             };
         }
 
@@ -142,13 +149,27 @@ class ServerUDP
             {
                 MsgId = 9999,
                 MsgType = MessageType.End,
-                Content = "End of communication"
+                Content = "End of DNSLookup"
             };
             var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(endMessage));
             Console.WriteLine("Reply to client: " + endMessage.Content);
             socket.SendTo(msg, ep);
+            ackcount = 0;
             return false;
         }
         return true;
+    }
+
+    public static void SendError(Socket socket, EndPoint ep, Message dnsmsg)
+    {
+        var errorMessage = new Message
+        {
+            MsgId = 9999,
+            MsgType = MessageType.Error,
+            Content = "Error occurred"
+        };
+        var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(errorMessage));
+        Console.WriteLine("Reply to client: " + errorMessage.Content);
+        socket.SendTo(msg, ep);
     }
 }

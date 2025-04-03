@@ -84,7 +84,7 @@ class ClientUDP
         var msgend = end.Content as JsonElement?;
         if (end.MsgType == MessageType.End)
         {
-            Console.WriteLine("" + msgend);
+            Console.WriteLine("Received from server: " + msgend);
             socket.Close();
         }
     }
