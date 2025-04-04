@@ -58,7 +58,7 @@ class ClientUDP
         if (!SendMessage(socket, serverend, hello)) return;
         //TODO: [Receive and print Welcome from server]
         var welcome = Listen(socket, serverend);
-        if (welcome != null && welcome.MsgType == MessageType.End) return;
+        if (welcome != null && welcome.MsgType == MessageType.End || welcome == null) return;
         
         // TODO: [Create and send DNSLookup Message]
         var dnsLookups = new List<Message>
@@ -74,7 +74,7 @@ class ClientUDP
             if (!SendMessage(socket, serverend, dnsLookup)) return;
             //TODO: [Receive and print DNSLookupReply from server]
             var repl = Listen(socket, serverend);
-            if (repl != null && repl.MsgType == MessageType.End) return;
+            if (repl != null && repl.MsgType == MessageType.End || repl == null) return;
             //TODO: [Send Acknowledgment to Server]
             var ack1 = new Message
             {
@@ -86,7 +86,7 @@ class ClientUDP
         }
         //TODO: [Receive and print End from server]
         var end = Listen(socket, serverend);
-        if (end != null && end.MsgType == MessageType.End) return;
+        if (end != null && end.MsgType == MessageType.End || end == null) return;
         Console.WriteLine("Client finished sending messages!");
     }
 
@@ -142,6 +142,8 @@ class ClientUDP
         catch (SocketException ex) // exception handling voor socket errors (voornamelijk als de server niet bereikbaar is)
         {
             Console.WriteLine($"Socket error while setting listening for messages: {ex.Message}");
+            Console.WriteLine("Closing client socket...");
+            socket.Close();
             return null;
         }
         catch (JsonException ex) // exception handling voor json errors (voornamelijk als de message niet goed is geformatteerd)
