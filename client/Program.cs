@@ -49,16 +49,16 @@ class ClientUDP
         //TODO: [Create and send HELLO]
         IPEndPoint serverep = new IPEndPoint(IPAddress.Parse(setting.ServerIPAddress), setting.ServerPortNumber);
         EndPoint serverend = serverep;
-        if (!SendHello(socket, serverend))
+        var hello = new Message // hello message
         {
-            Console.WriteLine("Error: Unable to send Hello message.");
-            Console.WriteLine("Closing client socket...");
-            socket.Close();
-            return;
-        }
+            MsgId = 1,
+            MsgType = MessageType.Hello,
+            Content = "Hello from client"
+        };
+        if (!SendMessage(socket, serverend, hello)) return;
         //TODO: [Receive and print Welcome from server]
         var welcome = Listen(socket, serverend);
-        if (welcome == null) return;
+        if (welcome != null && welcome.MsgType == MessageType.End) return;
         
         // TODO: [Create and send DNSLookup Message]
         var dnsLookups = new List<Message>
@@ -71,10 +71,10 @@ class ClientUDP
         // TODO: [Send next DNSLookup to server]
         foreach (var dnsLookup in dnsLookups)
         {
-            SendMessage(socket, serverend, dnsLookup);
+            if (!SendMessage(socket, serverend, dnsLookup)) return;
             //TODO: [Receive and print DNSLookupReply from server]
             var repl = Listen(socket, serverend);
-            if (repl == null) return;
+            if (repl != null && repl.MsgType == MessageType.End) return;
             //TODO: [Send Acknowledgment to Server]
             var ack1 = new Message
             {
@@ -82,103 +82,97 @@ class ClientUDP
                 MsgType = MessageType.Ack,
                 Content = dnsLookup.MsgId.ToString()
             };
-            SendMessage(socket, serverend, ack1);
+            if (!SendMessage(socket, serverend, ack1)) return;
         }
         //TODO: [Receive and print End from server]
         var end = Listen(socket, serverend);
-        if (end == null) return;
-        if (end.MsgType == MessageType.End) return;
+        if (end != null && end.MsgType == MessageType.End) return;
+        Console.WriteLine("Client finished sending messages!");
     }
 
-    public static bool SendHello(Socket socket, EndPoint ep)
-    {
-        var hello = new Message
-        {
-            MsgId = 1,
-            MsgType = MessageType.Hello,
-            Content = "Hello from client"
-        };
-        try
-        {
-            var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(hello));
-            Console.WriteLine("Message to server: " + hello.Content);
-            socket.SendTo(msg, ep);
-            return true;
-        }
-        catch (SocketException ex)
-        {
-            Console.WriteLine($"Socket error while sending Hello message: {ex.Message}");
-            return false;
-        }
-        catch (JsonException ex)
-        {
-            Console.WriteLine($"JSON error while serializing message: {ex.Message}");
-            return false;
-        }
-    }
 
     public static Message Listen(Socket socket, EndPoint ep)
     {
-        try
+        try //poging tot luisteren naar een message van de server
         {
             int b = socket.ReceiveFrom(buffer, ref ep);
             data = Encoding.ASCII.GetString(buffer, 0, b);
             Message dnsmsg = JsonSerializer.Deserialize<Message>(data);
-            if (dnsmsg == null)
+            if (dnsmsg == null) //handling voor als de gekregen data niet in een message object kan worden omgezet
             {
-                Console.WriteLine("Error: Unable to deserialize message; Message does not match the expected object format.\nClosing client socket...");
+                Console.WriteLine("Received from server: Error: Unable to deserialize message; Message does not match the expected object format.\nClosing client socket...");
                 return null;
             }
-            if (dnsmsg.MsgType == MessageType.End)
+            if (dnsmsg.MsgType == MessageType.End) //handling voor een end message van de server om de client af te sluiten
             {
                 Console.WriteLine("Received from server: " + dnsmsg.Content);
                 Console.WriteLine("Closing client socket...");
                 socket.Close();
             }
-            else if (dnsmsg.MsgType == MessageType.Error && dnsmsg.MsgId == 9999)
+            else if (dnsmsg.MsgType == MessageType.Error && dnsmsg.MsgId == 9999) //handling voor een error message van de server die aangeeft dat de client zou moeten sluiten (door een foute message van de client)
             {
                 Console.WriteLine("Received from server: " + dnsmsg.Content);
                 Console.WriteLine("Closing client socket...");
                 socket.Close();
                 return null;
             }
-            else if (dnsmsg.MsgType == MessageType.Error)
+            else if (dnsmsg.MsgType == MessageType.Error) //handling voor een error message van het niet vinden van een lookup
             {
                 Console.WriteLine("Received from server: " + dnsmsg.Content);
             }
-            else if (dnsmsg.MsgType == MessageType.Welcome)
+            else if (dnsmsg.MsgType == MessageType.Welcome) //handling voor een welcome message van de server
             {
                 Console.WriteLine("Received from server: " + dnsmsg.Content);
+            }
+            else if (dnsmsg.MsgType == MessageType.DNSLookupReply) //handling voor een DNSLookupReply message van de server
+            {
+                Console.WriteLine("Received from server: " + dnsmsg.Content);
+            }
+            else if (dnsmsg.MsgType == MessageType.Ack) //handling voor een acknowledgement message van de server
+            {
+                Console.WriteLine("Received from server: " + dnsmsg.Content);
+            }
+            else //handling voor een message type dat niet wordt herkend
+            {
+                Console.WriteLine("Received from server: Error: Unable to deserialize message; Client does not support the given Message Type.");
+                return null;
             }
             return dnsmsg;
         }
-        catch (SocketException ex)
+        catch (SocketException ex) // exception handling voor socket errors (voornamelijk als de server niet bereikbaar is)
         {
-            Console.WriteLine($"Socket error while setting listening for messages: {ex.Message}\nClosing client socket...");
+            Console.WriteLine($"Socket error while setting listening for messages: {ex.Message}");
             return null;
         }
-        catch (JsonException ex)
+        catch (JsonException ex) // exception handling voor json errors (voornamelijk als de message niet goed is geformatteerd)
         {
-            Console.WriteLine($"JSON error while deserializing message: {ex.Message}\nClosing client socket...");
+            Console.WriteLine($"Received from server: JSON error while deserializing message: {ex.Message}");
             return null;
         }
     }
 
-    public static void SendMessage(Socket socket, EndPoint ep, Message msg1)
+    public static bool SendMessage(Socket socket, EndPoint ep, Message msg1) // method voor het versturen van een message naar de server
     {
-        var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(msg1));
         try
         {
-            Console.WriteLine("Message to server: " + msg1.MsgType +" "+ msg1.Content.ToString());
+            var msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(msg1)); //de message wordt omgezet naar een byte array
+            Console.WriteLine("Message to server: " + msg1.MsgType +": "+ msg1.Content.ToString());
             socket.SendTo(msg, ep);
+            return true;
         }
-        catch (SocketException ex)
+        catch (SocketException ex) //exception handling voor socket errors (voornamelijk als de server niet bereikbaar is)
         {
             Console.WriteLine($"Socket error while sending message: {ex.Message}");
+            Console.WriteLine("Closing client socket...");
+            socket.Close();
+            return false;
         }
-        catch (JsonException ex)
+        catch (JsonException ex) //exception handling voor json errors (voornamelijk als de message niet goed is geformatteerd)
         {
-            Console.WriteLine($"JSON error while serializing message: {ex.Message}");
+            Console.WriteLine($"JSON error while serializing own message: {ex.Message}");
+            Console.WriteLine("Closing client socket...");
+            socket.Close();
+            return false;
         }
     }
 }
