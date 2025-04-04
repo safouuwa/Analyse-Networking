@@ -89,20 +89,21 @@ class ServerUDP
             Message dnsmsg = JsonSerializer.Deserialize<Message>(data);
             if (dnsmsg == null)
             {
-                SendError(socket, ep, "Error: Unable to deserialize message; Message does not match the expected object format.\nSending end message to client.");
-                var endMessage = new Message
-                {
-                    MsgId = 9999,
-                    MsgType = MessageType.Error,
-                    Content = "End connection due to error"
-                };
-                return endMessage;
-            }
+                SendError(socket, ep, "Error: Unable to deserialize message; Message does not match the expected object format.");
+                return null;
+            }  
             return dnsmsg;
         }
         catch (SocketException ex)
         {
             Console.WriteLine($"Socket error while setting listening for messages: {ex.Message}");
+            SendError(socket, ep, "Error: Unable to receive message; Socket error occurred.", 9999);
+            return null;
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine($"JSON error while deserializing message: {ex.Message}");
+            SendError(socket, ep, "Error: Unable to deserialize message; Message does not match the expected JSON format.", 9999);
             return null;
         }
     }
@@ -123,7 +124,16 @@ class ServerUDP
     public static void DNSLookupReply(Socket socket, EndPoint ep, Message dnsmsg)
     {
         var content1 = dnsmsg.Content as JsonElement?;
-        var rec1 = JsonSerializer.Deserialize<DNSRecord>(content1.Value.GetRawText());
+        DNSRecord rec1;
+        try
+        {
+            rec1 = JsonSerializer.Deserialize<DNSRecord>(content1.Value.GetRawText());
+        }
+        catch (JsonException ex)
+        {
+            SendError(socket, ep, "Error: Unable to deserialize message; DNSLookup message content does not match the expected object format.");
+            return;
+        }
         if (rec1 == null || string.IsNullOrEmpty(rec1.Name) || string.IsNullOrEmpty(rec1.Type))
         {
             SendError(socket, ep, "Error: Unable to deserialize message; DNSLookup message content is null or incomplete.");
@@ -177,11 +187,11 @@ class ServerUDP
         return true;
     }
 
-    public static void SendError(Socket socket, EndPoint ep, string errormsg)
+    public static void SendError(Socket socket, EndPoint ep, string errormsg, int msgid = 8888)
     {
         var errorMessage = new Message
         {
-            MsgId = 9999,
+            MsgId = msgid,
             MsgType = MessageType.Error,
             Content = errormsg
         };
